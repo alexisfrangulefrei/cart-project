@@ -202,4 +202,15 @@ describe('accessors / errors', () => {
         expect(() => cart.getAmount('A', Number.NaN)).toThrowError(/Price must be a positive number/i);
     });
   });
+
+describe('promotions', () => {
+    // Activation attempts for unknown codes must return false.
+    it('returns false when activating a non-registered code', () => {
+        const cart = new Cart();
+
+        const activated = cart.activatePromotion('PROMO10');
+
+        expect(activated).toBe(false);
+    });
+});
 });
