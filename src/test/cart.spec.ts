@@ -233,6 +233,17 @@ describe('promotions', () => {
         expect(cart.activatePromotion('B2G1')).toBe(true);
     });
 
+    // Quantity below threshold should not grant freebies.
+    it('does not grant freebies when quantity is insufficient', () => {
+        const cart = new Cart();
+
+        cart.registerBuyNGetOnePromotion('B2G1', 'C', 2);
+        cart.add('C', 40, 1);
+
+        expect(cart.activatePromotion('B2G1')).toBe(true);
+        expect(cart.getAmount('C', 40)).toBe(40);
+    });
+
     // Once activated, the promotion must discount totals for its reference.
     it('applies promotion to totals after activation', () => {
         const cart = new Cart();
