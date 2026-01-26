@@ -119,11 +119,17 @@ export class Cart {
 		});
 	}
 
-	// Activates a registered promotion code; unknown codes return false.
+	// Activates a registered promotion code; returns false if unknown or if another code already discounts the same reference.
 	public activatePromotion(code: string): boolean {
 		const promoCode = this.normalizePromotionCode(code);
 		const promotion = this.promotions.get(promoCode);
 		if (!promotion) {
+			return false;
+		}
+		if (promotion.activated) {
+			return true;
+		}
+		if (this.hasActivePromotionForReference(promotion.reference, promoCode)) {
 			return false;
 		}
 		promotion.activated = true;
@@ -250,5 +256,18 @@ export class Cart {
 			return promotion;
 		}
 		return undefined;
+	}
+
+	// Checks whether another active promotion already targets the same reference.
+	private hasActivePromotionForReference(reference: string, excludeCode?: string): boolean {
+		for (const [code, promotion] of this.promotions.entries()) {
+			if (excludeCode && code === excludeCode) {
+				continue;
+			}
+			if (promotion.reference === reference && promotion.activated) {
+				return true;
+			}
+		}
+		return false;
 	}
 }
