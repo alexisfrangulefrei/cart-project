@@ -224,6 +224,15 @@ describe('promotions', () => {
         expect(activated).toBe(true);
     });
 
+    // Buy-N-get-one codes can be registered for references not yet added.
+    it('registers a buy-two-get-one promotion for an absent reference', () => {
+        const cart = new Cart();
+
+        cart.registerBuyNGetOnePromotion('B2G1', 'C', 2);
+
+        expect(cart.activatePromotion('B2G1')).toBe(true);
+    });
+
     // Once activated, the promotion must discount totals for its reference.
     it('applies promotion to totals after activation', () => {
         const cart = new Cart();
