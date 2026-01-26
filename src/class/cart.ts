@@ -1,7 +1,15 @@
 type PriceBucket = Map<number, number>;
 
+type PromotionRule = {
+	reference: string;
+	percent: number;
+	minPrice?: number;
+	activated: boolean;
+};
+
 export class Cart {
 	private readonly items: Map<string, PriceBucket> = new Map();
+	private readonly promotions: Map<string, PromotionRule> = new Map();
 
 	// Adds quantity to a reference/price pair while preventing duplicate tuples.
 	public add(reference: string, price: number, quantity: number): void {
@@ -89,6 +97,17 @@ export class Cart {
 		return price * quantity;
 	}
 
+	// Activates a registered promotion code; unknown codes return false.
+	public activatePromotion(code: string): boolean {
+		const promoCode = this.normalizePromotionCode(code);
+		const promotion = this.promotions.get(promoCode);
+		if (!promotion) {
+			return false;
+		}
+		promotion.activated = true;
+		return true;
+	}
+
 	// Resolves an existing reference; throws if it is absent.
 	private getExistingBucket(reference: string): { refKey: string; bucket: PriceBucket } {
 		return this.resolveBucket(reference, false);
@@ -151,6 +170,15 @@ export class Cart {
 		const value = reference.trim();
 		if (!value) {
 			throw new Error('Reference must be a non-empty string');
+		}
+		return value;
+	}
+
+	// Validates promotion codes to keep coupon registry consistent.
+	private normalizePromotionCode(code: string): string {
+		const value = code.trim();
+		if (!value) {
+			throw new Error('Promotion code must be a non-empty string');
 		}
 		return value;
 	}
