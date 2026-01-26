@@ -266,6 +266,17 @@ describe('promotions', () => {
         expect(cart.getAmount('C', 40)).toBe(160);
     });
 
+    // Two completed blocks must unlock two freebies, reducing payable units accordingly.
+    it('grants two free units when quantity completes two threshold blocks', () => {
+        const cart = new Cart();
+
+        cart.registerBuyNGetOnePromotion('B2G1', 'C', 2);
+        cart.add('C', 40, 7);
+
+        expect(cart.activatePromotion('B2G1')).toBe(true);
+        expect(cart.getAmount('C', 40)).toBe(200);
+    });
+
     // Once activated, the promotion must discount totals for its reference.
     it('applies promotion to totals after activation', () => {
         const cart = new Cart();
