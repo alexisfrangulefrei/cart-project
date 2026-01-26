@@ -97,6 +97,28 @@ export class Cart {
 		return price * quantity;
 	}
 
+	// Registers a promotion code tied to a reference absent from the cart.
+	public registerPromotion(code: string, reference: string, percent: number, minPrice?: number): void {
+		const promoCode = this.normalizePromotionCode(code);
+		const refKey = this.normalizeReference(reference);
+		this.assertPercent(percent);
+		if (minPrice !== undefined) {
+			this.assertPrice(minPrice);
+		}
+		if (this.items.has(refKey)) {
+			throw new Error('Promotion reference must not be in cart');
+		}
+		if (this.promotions.has(promoCode)) {
+			throw new Error('Promotion code already registered');
+		}
+		this.promotions.set(promoCode, {
+			reference: refKey,
+			percent,
+			minPrice,
+			activated: false,
+		});
+	}
+
 	// Activates a registered promotion code; unknown codes return false.
 	public activatePromotion(code: string): boolean {
 		const promoCode = this.normalizePromotionCode(code);
@@ -194,6 +216,13 @@ export class Cart {
 	private assertPrice(price: number): void {
 		if (typeof price !== 'number' || Number.isNaN(price) || price <= 0) {
 			throw new Error('Price must be a positive number');
+		}
+	}
+
+	// Guards that promotion percentages are between 1 and 99 (inclusive).
+	private assertPercent(percent: number): void {
+		if (!Number.isInteger(percent) || percent <= 0 || percent >= 100) {
+			throw new Error('Promotion percent must be an integer in (0, 100)');
 		}
 	}
 }
