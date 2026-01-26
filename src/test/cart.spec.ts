@@ -236,5 +236,35 @@ describe('promotions', () => {
         expect(cart.getTotalAmount()).toBe(90);
         expect(cart.getAmount('A', 50)).toBe(90);
     });
+
+    // Promotions for distinct references should stack independently.
+    it('supports multiple active codes for different references', () => {
+        const cart = new Cart();
+
+        cart.registerPromotion('PROMO10', 'A', 10);
+        cart.registerPromotion('PROMO20', 'B', 20);
+        cart.add('A', 50, 2);
+        cart.add('B', 100, 1);
+
+        expect(cart.activatePromotion('PROMO10')).toBe(true);
+        expect(cart.activatePromotion('PROMO20')).toBe(true);
+
+        expect(cart.getTotalAmount()).toBe(90 + 80);
+        expect(cart.getAmount('A', 50)).toBe(90);
+        expect(cart.getAmount('B', 100)).toBe(80);
+    });
+
+    // Second activation for the same reference must fail (non-cumulable rule).
+    it('rejects activation of another code targeting the same reference', () => {
+        const cart = new Cart();
+
+        cart.registerPromotion('PROMO10', 'A', 10);
+        cart.registerPromotion('PROMO15', 'A', 15);
+        cart.add('A', 50, 2);
+
+        expect(cart.activatePromotion('PROMO10')).toBe(true);
+        expect(cart.activatePromotion('PROMO15')).toBe(false);
+        expect(cart.getAmount('A', 50)).toBe(90);
+    });
 });
 });
