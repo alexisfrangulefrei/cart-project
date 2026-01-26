@@ -255,6 +255,17 @@ describe('promotions', () => {
         expect(cart.getAmount('C', 40)).toBe(80);
     });
 
+    // Exceeding the threshold without completing another block must still grant a single freebie.
+    it('keeps one free unit when quantity exceeds threshold without forming another block', () => {
+        const cart = new Cart();
+
+        cart.registerBuyNGetOnePromotion('B2G1', 'C', 2);
+        cart.add('C', 40, 5);
+
+        expect(cart.activatePromotion('B2G1')).toBe(true);
+        expect(cart.getAmount('C', 40)).toBe(160);
+    });
+
     // Once activated, the promotion must discount totals for its reference.
     it('applies promotion to totals after activation', () => {
         const cart = new Cart();
