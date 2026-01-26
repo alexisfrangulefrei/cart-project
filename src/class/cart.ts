@@ -3,27 +3,27 @@ type PriceBucket = Map<number, number>;
 export class Cart {
 	private readonly items: Map<string, PriceBucket> = new Map();
 
+	// Adds quantity to a reference/price pair while preventing duplicate tuples.
 	public add(reference: string, price: number, quantity: number): void {
-		const refKey = this.normalizeReference(reference);
 		this.assertPrice(price);
 		this.assertQuantity(quantity);
+		const { bucket } = this.getOrCreateBucket(reference);
 
-		const bucket = this.items.get(refKey) ?? new Map<number, number>();
 		const existingQuantity = bucket.get(price) ?? 0;
 		bucket.set(price, existingQuantity + quantity);
-		this.items.set(refKey, bucket);
 	}
 
+	// Removes quantity starting from the costliest units, as required.
 	public remove(reference: string, quantity: number): void {
-		const { refKey, bucket } = this.requireBucket(reference);
+		const { refKey, bucket } = this.getExistingBucket(reference);
 		this.assertQuantity(quantity);
 
-		const totalQuantity = Array.from(bucket.values()).reduce((sum, value) => sum + value, 0);
+		const totalQuantity = this.sumQuantities(bucket);
 		if (quantity > totalQuantity) {
 			throw new Error('Insufficient quantity to remove');
 		}
 
-		const pricesDesc = Array.from(bucket.keys()).sort((a, b) => b - a);
+		const pricesDesc = this.sortPrices(bucket, 'desc');
 
 		let remaining = quantity;
 		for (const price of pricesDesc) {
@@ -51,50 +51,69 @@ export class Cart {
 		}
 	}
 
+	// Returns total monetary amount stored in the cart.
 	public getTotalAmount(): number {
 		let total = 0;
 		for (const bucket of this.items.values()) {
-			for (const [price, quantity] of bucket.entries()) {
-				total += price * quantity;
-			}
+			total += this.calculateBucketAmount(bucket);
 		}
 		return total;
 	}
 
+	// Lists distinct references currently present.
 	public getReferences(): string[] {
 		return Array.from(this.items.keys()).sort();
 	}
 
+	// Enumerates unit prices available for the provided reference.
 	public getUnitPrices(reference: string): number[] {
-		const { bucket } = this.requireBucket(reference);
-		return Array.from(bucket.keys()).sort((a, b) => a - b);
+		const { bucket } = this.getExistingBucket(reference);
+		return this.sortPrices(bucket, 'asc');
 	}
 
+	// Returns total quantity for a reference or for a specific price when provided.
 	public getQuantity(reference: string, price?: number): number {
-		const { bucket } = this.requireBucket(reference);
+		const { bucket } = this.getExistingBucket(reference);
 
 		if (price === undefined) {
-			return Array.from(bucket.values()).reduce((sum, value) => sum + value, 0);
+			return this.sumQuantities(bucket);
 		}
 
 		return this.getQuantityForPrice(bucket, price);
 	}
 
+	// Returns amount for an existing reference/price tuple.
 	public getAmount(reference: string, price: number): number {
-		const { bucket } = this.requireBucket(reference);
+		const { bucket } = this.getExistingBucket(reference);
 		const quantity = this.getQuantityForPrice(bucket, price);
 		return price * quantity;
 	}
 
-	private requireBucket(reference: string): { refKey: string; bucket: PriceBucket } {
+	// Resolves an existing reference; throws if it is absent.
+	private getExistingBucket(reference: string): { refKey: string; bucket: PriceBucket } {
+		return this.resolveBucket(reference, false);
+	}
+
+	// Resolves a reference or creates a fresh bucket for writes.
+	private getOrCreateBucket(reference: string): { refKey: string; bucket: PriceBucket } {
+		return this.resolveBucket(reference, true);
+	}
+
+	// Centralized resolution to keep normalization and creation logic DRY.
+	private resolveBucket(reference: string, createIfMissing: boolean): { refKey: string; bucket: PriceBucket } {
 		const refKey = this.normalizeReference(reference);
-		const bucket = this.items.get(refKey);
+		let bucket = this.items.get(refKey);
 		if (!bucket) {
-			throw new Error('Reference not found in cart');
+			if (!createIfMissing) {
+				throw new Error('Reference not found in cart');
+			}
+			bucket = new Map<number, number>();
+			this.items.set(refKey, bucket);
 		}
 		return { refKey, bucket };
 	}
 
+	// Fetches quantity for a (reference, price) and enforces price validity.
 	private getQuantityForPrice(bucket: PriceBucket, price: number): number {
 		this.assertPrice(price);
 		const quantity = bucket.get(price);
@@ -104,6 +123,30 @@ export class Cart {
 		return quantity;
 	}
 
+	// Aggregates all stored quantities for the bucket.
+	private sumQuantities(bucket: PriceBucket): number {
+		let total = 0;
+		for (const value of bucket.values()) {
+			total += value;
+		}
+		return total;
+	}
+
+	// Sorts price keys to ensure deterministic order when iterating.
+	private sortPrices(bucket: PriceBucket, direction: 'asc' | 'desc'): number[] {
+		return Array.from(bucket.keys()).sort((a, b) => direction === 'asc' ? a - b : b - a);
+	}
+
+	// Computes total amount represented by a bucket (price * quantity sum).
+	private calculateBucketAmount(bucket: PriceBucket): number {
+		let total = 0;
+		for (const [price, quantity] of bucket.entries()) {
+			total += price * quantity;
+		}
+		return total;
+	}
+
+	// Trims and validates references to avoid duplicate keys.
 	private normalizeReference(reference: string): string {
 		const value = reference.trim();
 		if (!value) {
@@ -112,12 +155,14 @@ export class Cart {
 		return value;
 	}
 
+	// Guards that all quantities are positive integers.
 	private assertQuantity(quantity: number): void {
 		if (!Number.isInteger(quantity) || quantity <= 0) {
 			throw new Error('Quantity must be a positive integer');
 		}
 	}
 
+	// Guards that all prices are positive real numbers.
 	private assertPrice(price: number): void {
 		if (typeof price !== 'number' || Number.isNaN(price) || price <= 0) {
 			throw new Error('Price must be a positive number');

@@ -1,9 +1,9 @@
 {
   "name": "cart-project",
   "version": "1.0.0",
-  "description": "",
+  "description": "Small TypeScript cart project meant to practice Test-Driven Development",
   "license": "ISC",
-  "author": "",
+  "author": "Alexis FRANGUL, Tristan GONCALVES",
   "type": "commonjs",
   "main": "index.js",
   "scripts": {
