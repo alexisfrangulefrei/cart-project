@@ -62,8 +62,8 @@ export class Cart {
 	// Returns total monetary amount stored in the cart.
 	public getTotalAmount(): number {
 		let total = 0;
-		for (const bucket of this.items.values()) {
-			total += this.calculateBucketAmount(bucket);
+		for (const [reference, bucket] of this.items.entries()) {
+			total += this.calculateBucketAmount(reference, bucket);
 		}
 		return total;
 	}
@@ -94,7 +94,7 @@ export class Cart {
 	public getAmount(reference: string, price: number): number {
 		const { bucket } = this.getExistingBucket(reference);
 		const quantity = this.getQuantityForPrice(bucket, price);
-		return price * quantity;
+		return this.getDiscountedPrice(reference, price) * quantity;
 	}
 
 	// Registers a promotion code tied to a reference absent from the cart.
@@ -178,11 +178,11 @@ export class Cart {
 		return Array.from(bucket.keys()).sort((a, b) => direction === 'asc' ? a - b : b - a);
 	}
 
-	// Computes total amount represented by a bucket (price * quantity sum).
-	private calculateBucketAmount(bucket: PriceBucket): number {
+	// Computes total amount represented by a bucket, factoring promotions when needed.
+	private calculateBucketAmount(reference: string, bucket: PriceBucket): number {
 		let total = 0;
 		for (const [price, quantity] of bucket.entries()) {
-			total += price * quantity;
+			total += this.getDiscountedPrice(reference, price) * quantity;
 		}
 		return total;
 	}
@@ -224,5 +224,31 @@ export class Cart {
 		if (!Number.isInteger(percent) || percent <= 0 || percent >= 100) {
 			throw new Error('Promotion percent must be an integer in (0, 100)');
 		}
+	}
+
+	// Applies an active promotion to the price when reference and min price conditions are met.
+	private getDiscountedPrice(reference: string, price: number): number {
+		const promotion = this.findApplicablePromotion(reference, price);
+		if (!promotion) {
+			return price;
+		}
+		return price * (1 - promotion.percent / 100);
+	}
+
+	// Retrieves the first active promotion applicable to the reference/price pair.
+	private findApplicablePromotion(reference: string, price: number): PromotionRule | undefined {
+		for (const promotion of this.promotions.values()) {
+			if (promotion.reference !== reference) {
+				continue;
+			}
+			if (!promotion.activated) {
+				continue;
+			}
+			if (promotion.minPrice !== undefined && price < promotion.minPrice) {
+				continue;
+			}
+			return promotion;
+		}
+		return undefined;
 	}
 }
