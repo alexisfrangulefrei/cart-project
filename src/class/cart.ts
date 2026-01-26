@@ -1,11 +1,21 @@
 type PriceBucket = Map<number, number>;
 
-type PromotionRule = {
+type PercentPromotion = {
+	type: 'percent';
 	reference: string;
 	percent: number;
 	minPrice?: number;
 	activated: boolean;
 };
+
+type BuyNGetOnePromotion = {
+	type: 'buyNGetOne';
+	reference: string;
+	threshold: number;
+	activated: boolean;
+};
+
+type PromotionRule = PercentPromotion | BuyNGetOnePromotion;
 
 export class Cart {
 	private readonly items: Map<string, PriceBucket> = new Map();
@@ -97,7 +107,7 @@ export class Cart {
 		return this.getDiscountedPrice(reference, price) * quantity;
 	}
 
-	// Registers a promotion code tied to a reference absent from the cart.
+	// Registers a percent-based promotion for a reference absent from the cart.
 	public registerPromotion(code: string, reference: string, percent: number, minPrice?: number): void {
 		const promoCode = this.normalizePromotionCode(code);
 		const refKey = this.normalizeReference(reference);
@@ -112,9 +122,29 @@ export class Cart {
 			throw new Error('Promotion code already registered');
 		}
 		this.promotions.set(promoCode, {
+			type: 'percent',
 			reference: refKey,
 			percent,
 			minPrice,
+			activated: false,
+		});
+	}
+
+	// Registers a buy-N-get-one promotion for a reference absent from the cart.
+	public registerBuyNGetOnePromotion(code: string, reference: string, threshold: number): void {
+		const promoCode = this.normalizePromotionCode(code);
+		const refKey = this.normalizeReference(reference);
+		this.assertThreshold(threshold);
+		if (this.items.has(refKey)) {
+			throw new Error('Promotion reference must not be in cart');
+		}
+		if (this.promotions.has(promoCode)) {
+			throw new Error('Promotion code already registered');
+		}
+		this.promotions.set(promoCode, {
+			type: 'buyNGetOne',
+			reference: refKey,
+			threshold,
 			activated: false,
 		});
 	}
@@ -232,18 +262,28 @@ export class Cart {
 		}
 	}
 
+	// Ensures buy-N-get-one thresholds are integers of at least 2 (buy 2 get 1).
+	private assertThreshold(threshold: number): void {
+		if (!Number.isInteger(threshold) || threshold < 2) {
+			throw new Error('Promotion threshold must be an integer >= 2');
+		}
+	}
+
 	// Applies an active promotion to the price when reference and min price conditions are met.
 	private getDiscountedPrice(reference: string, price: number): number {
-		const promotion = this.findApplicablePromotion(reference, price);
+		const promotion = this.findApplicablePercentPromotion(reference, price);
 		if (!promotion) {
 			return price;
 		}
 		return price * (1 - promotion.percent / 100);
 	}
 
-	// Retrieves the first active promotion applicable to the reference/price pair.
-	private findApplicablePromotion(reference: string, price: number): PromotionRule | undefined {
+	// Retrieves the first active percent-based promotion applicable to the reference/price pair.
+	private findApplicablePercentPromotion(reference: string, price: number): PercentPromotion | undefined {
 		for (const promotion of this.promotions.values()) {
+			if (promotion.type !== 'percent') {
+				continue;
+			}
 			if (promotion.reference !== reference) {
 				continue;
 			}
