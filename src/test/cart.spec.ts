@@ -223,5 +223,18 @@ describe('promotions', () => {
 
         expect(activated).toBe(true);
     });
+
+    // Once activated, the promotion must discount totals for its reference.
+    it('applies promotion to totals after activation', () => {
+        const cart = new Cart();
+
+        cart.registerPromotion('PROMO10', 'A', 10);
+        cart.add('A', 50, 2);
+
+        expect(cart.activatePromotion('PROMO10')).toBe(true);
+
+        expect(cart.getTotalAmount()).toBe(90);
+        expect(cart.getAmount('A', 50)).toBe(90);
+    });
 });
 });
