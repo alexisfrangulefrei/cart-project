@@ -244,6 +244,17 @@ describe('promotions', () => {
         expect(cart.getAmount('C', 40)).toBe(40);
     });
 
+    // Exactly enough items should grant a single free unit.
+    it('grants one free unit when quantity meets threshold block', () => {
+        const cart = new Cart();
+
+        cart.registerBuyNGetOnePromotion('B2G1', 'C', 2);
+        cart.add('C', 40, 3);
+
+        expect(cart.activatePromotion('B2G1')).toBe(true);
+        expect(cart.getAmount('C', 40)).toBe(80);
+    });
+
     // Once activated, the promotion must discount totals for its reference.
     it('applies promotion to totals after activation', () => {
         const cart = new Cart();
