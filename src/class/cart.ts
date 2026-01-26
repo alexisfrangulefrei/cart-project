@@ -104,7 +104,27 @@ export class Cart {
 	public getAmount(reference: string, price: number): number {
 		const { bucket } = this.getExistingBucket(reference);
 		const quantity = this.getQuantityForPrice(bucket, price);
-		return this.getDiscountedPrice(reference, price) * quantity;
+		let payable = quantity;
+		for (const promotion of this.promotions.values()) {
+			if (promotion.type !== 'buyNGetOne') {
+				continue;
+			}
+			if (!promotion.activated || promotion.reference !== reference) {
+				continue;
+			}
+			const totalUnits = this.sumQuantities(bucket);
+			const block = promotion.threshold + 1;
+			if (block <= 0) {
+				continue;
+			}
+			const freebies = Math.floor(totalUnits / block);
+			if (freebies <= 0) {
+				continue;
+			}
+			payable = Math.max(0, quantity - freebies);
+			break;
+		}
+		return this.getDiscountedPrice(reference, price) * payable;
 	}
 
 	// Registers a percent-based promotion for a reference absent from the cart.
