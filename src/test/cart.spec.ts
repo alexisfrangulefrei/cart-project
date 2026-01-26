@@ -212,5 +212,16 @@ describe('promotions', () => {
 
         expect(activated).toBe(false);
     });
+
+    // Registering a code for a reference outside the cart should allow activation later.
+    it('registers a promotion for a reference not yet in the cart', () => {
+        const cart = new Cart();
+
+        cart.registerPromotion('PROMO10', 'A', 10);
+
+        const activated = cart.activatePromotion('PROMO10');
+
+        expect(activated).toBe(true);
+    });
 });
 });
