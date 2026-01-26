@@ -266,5 +266,29 @@ describe('promotions', () => {
         expect(cart.activatePromotion('PROMO15')).toBe(false);
         expect(cart.getAmount('A', 50)).toBe(90);
     });
+
+    // Min price ensures only eligible unit prices get discounted.
+    it('applies discount only when unit price meets minimum', () => {
+        const cart = new Cart();
+
+        cart.registerPromotion('PROMO20', 'A', 20, 40);
+        cart.add('A', 30, 1);
+        cart.add('A', 50, 1);
+
+        expect(cart.activatePromotion('PROMO20')).toBe(true);
+        expect(cart.getAmount('A', 30)).toBe(30);
+        expect(cart.getAmount('A', 50)).toBe(40);
+    });
+
+    // Registering with a minimum price still disallows activation if reference missing.
+    it('supports registering promotion with minimum price when reference absent', () => {
+        const cart = new Cart();
+
+        cart.registerPromotion('PROMO15', 'B', 15, 60);
+        cart.add('B', 80, 1);
+
+        expect(cart.activatePromotion('PROMO15')).toBe(true);
+        expect(cart.getAmount('B', 80)).toBe(68);
+    });
 });
 });
