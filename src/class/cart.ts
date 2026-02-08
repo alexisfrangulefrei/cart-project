@@ -162,26 +162,8 @@ export class Cart {
 		if (promotion.activated) {
 			return true;
 		}
-		if (this.hasActivePromotionForReference(promotion.reference, promoCode)) {
-			let sameTypeActive = false;
-			for (const [existingCode, existingPromotion] of this.promotions.entries()) {
-				if (existingCode === promoCode) {
-					continue;
-				}
-				if (!existingPromotion.activated) {
-					continue;
-				}
-				if (existingPromotion.reference !== promotion.reference) {
-					continue;
-				}
-				if (existingPromotion.type === promotion.type) {
-					sameTypeActive = true;
-					break;
-				}
-			}
-			if (sameTypeActive) {
-				return false;
-			}
+		if (this.hasActivePromotionForReference(promotion.reference, promoCode, promotion.type)) {
+			return false;
 		}
 		promotion.activated = true;
 		return true;
@@ -371,14 +353,21 @@ export class Cart {
 	}
 
 	// Checks whether another active promotion already targets the same reference.
-	private hasActivePromotionForReference(reference: string, excludeCode?: string): boolean {
+	private hasActivePromotionForReference(reference: string, excludeCode?: string, type?: PromotionRule['type']): boolean {
 		for (const [code, promotion] of this.promotions.entries()) {
 			if (excludeCode && code === excludeCode) {
 				continue;
 			}
-			if (promotion.reference === reference && promotion.activated) {
-				return true;
+			if (!promotion.activated) {
+				continue;
 			}
+			if (promotion.reference !== reference) {
+				continue;
+			}
+			if (type && promotion.type !== type) {
+				continue;
+			}
+			return true;
 		}
 		return false;
 	}
