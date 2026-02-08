@@ -277,6 +277,20 @@ describe('promotions', () => {
         expect(cart.getAmount('C', 40)).toBe(200);
     });
 
+    // Freebies must always be applied to the cheapest price buckets available.
+    it('always takes free units from the cheapest price bucket', () => {
+        const cart = new Cart();
+
+        cart.registerBuyNGetOnePromotion('B2G1', 'C', 2);
+        cart.add('C', 50, 2);
+        cart.add('C', 30, 1);
+
+        expect(cart.activatePromotion('B2G1')).toBe(true);
+        expect(cart.getAmount('C', 50)).toBe(100);
+        expect(cart.getAmount('C', 30)).toBe(0);
+        expect(cart.getTotalAmount()).toBe(100);
+    });
+
     // Once activated, the promotion must discount totals for its reference.
     it('applies promotion to totals after activation', () => {
         const cart = new Cart();
