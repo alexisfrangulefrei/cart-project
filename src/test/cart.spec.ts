@@ -291,6 +291,20 @@ describe('promotions', () => {
         expect(cart.getTotalAmount()).toBe(100);
     });
 
+    // Percent discounts must stack with B2G1 on the same reference when both are active.
+    it('stacks buy-two-get-one and percent promotions on the same reference', () => {
+        const cart = new Cart();
+
+        cart.registerPromotion('PROMO10', 'C', 10);
+        cart.registerBuyNGetOnePromotion('B2G1', 'C', 2);
+        cart.add('C', 50, 3);
+
+        expect(cart.activatePromotion('PROMO10')).toBe(true);
+        expect(cart.activatePromotion('B2G1')).toBe(true);
+        expect(cart.getAmount('C', 50)).toBe(90);
+        expect(cart.getTotalAmount()).toBe(90);
+    });
+
     // Once activated, the promotion must discount totals for its reference.
     it('applies promotion to totals after activation', () => {
         const cart = new Cart();
