@@ -121,7 +121,24 @@ export class Cart {
 			if (freebies <= 0) {
 				continue;
 			}
-			payable = Math.max(0, quantity - freebies);
+			let freebiesForPrice = 0;
+			let freeLeft = freebies;
+			const cheapestFirst = this.sortPrices(bucket, 'asc');
+			for (const candidatePrice of cheapestFirst) {
+				if (freeLeft <= 0) {
+					break;
+				}
+				const candidateQty = bucket.get(candidatePrice) ?? 0;
+				if (candidateQty <= 0) {
+					continue;
+				}
+				const used = candidateQty >= freeLeft ? freeLeft : candidateQty;
+				if (candidatePrice === price) {
+					freebiesForPrice = used;
+				}
+				freeLeft -= used;
+			}
+			payable = Math.max(0, quantity - freebiesForPrice);
 			break;
 		}
 		return this.getDiscountedPrice(reference, price) * payable;
@@ -237,8 +254,8 @@ export class Cart {
 	// Computes total amount represented by a bucket, factoring promotions when needed.
 	private calculateBucketAmount(reference: string, bucket: PriceBucket): number {
 		let total = 0;
-		for (const [price, quantity] of bucket.entries()) {
-			total += this.getDiscountedPrice(reference, price) * quantity;
+		for (const price of bucket.keys()) {
+			total += this.getAmount(reference, price);
 		}
 		return total;
 	}
