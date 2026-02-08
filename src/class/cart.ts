@@ -104,43 +104,9 @@ export class Cart {
 	public getAmount(reference: string, price: number): number {
 		const { bucket } = this.getExistingBucket(reference);
 		const quantity = this.getQuantityForPrice(bucket, price);
-		let payable = quantity;
-		for (const promotion of this.promotions.values()) {
-			if (promotion.type !== 'buyNGetOne') {
-				continue;
-			}
-			if (!promotion.activated || promotion.reference !== reference) {
-				continue;
-			}
-			const totalUnits = this.sumQuantities(bucket);
-			const block = promotion.threshold + 1;
-			if (block <= 0) {
-				continue;
-			}
-			const freebies = Math.floor(totalUnits / block);
-			if (freebies <= 0) {
-				continue;
-			}
-			let freebiesForPrice = 0;
-			let freeLeft = freebies;
-			const cheapestFirst = this.sortPrices(bucket, 'asc');
-			for (const candidatePrice of cheapestFirst) {
-				if (freeLeft <= 0) {
-					break;
-				}
-				const candidateQty = bucket.get(candidatePrice) ?? 0;
-				if (candidateQty <= 0) {
-					continue;
-				}
-				const used = candidateQty >= freeLeft ? freeLeft : candidateQty;
-				if (candidatePrice === price) {
-					freebiesForPrice = used;
-				}
-				freeLeft -= used;
-			}
-			payable = Math.max(0, quantity - freebiesForPrice);
-			break;
-		}
+		const freebies = this.buildFreebieAllocation(reference, bucket);
+		const freeUnits = freebies.get(price) ?? 0;
+		const payable = Math.max(0, quantity - freeUnits);
 		return this.getDiscountedPrice(reference, price) * payable;
 	}
 
@@ -253,9 +219,12 @@ export class Cart {
 
 	// Computes total amount represented by a bucket, factoring promotions when needed.
 	private calculateBucketAmount(reference: string, bucket: PriceBucket): number {
+		const freebies = this.buildFreebieAllocation(reference, bucket);
 		let total = 0;
-		for (const price of bucket.keys()) {
-			total += this.getAmount(reference, price);
+		for (const [price, quantity] of bucket.entries()) {
+			const freeUnits = freebies.get(price) ?? 0;
+			const payable = Math.max(0, quantity - freeUnits);
+			total += this.getDiscountedPrice(reference, price) * payable;
 		}
 		return total;
 	}
@@ -333,6 +302,54 @@ export class Cart {
 			return promotion;
 		}
 		return undefined;
+	}
+
+	// Looks up an active buy-N-get-one promotion tied to the reference, if any.
+	private findActiveBuyNPromotion(reference: string): BuyNGetOnePromotion | undefined {
+		for (const promotion of this.promotions.values()) {
+			if (promotion.type !== 'buyNGetOne') {
+				continue;
+			}
+			if (!promotion.activated) {
+				continue;
+			}
+			if (promotion.reference !== reference) {
+				continue;
+			}
+			return promotion;
+		}
+		return undefined;
+	}
+
+	// Builds a per-price map describing how many units become free for the reference.
+	private buildFreebieAllocation(reference: string, bucket: PriceBucket): Map<number, number> {
+		const promotion = this.findActiveBuyNPromotion(reference);
+		if (!promotion) {
+			return new Map();
+		}
+		const block = promotion.threshold + 1;
+		if (block <= 0) {
+			return new Map();
+		}
+		const totalUnits = this.sumQuantities(bucket);
+		let freebies = Math.floor(totalUnits / block);
+		if (freebies <= 0) {
+			return new Map();
+		}
+		const allocation = new Map<number, number>();
+		for (const price of this.sortPrices(bucket, 'asc')) {
+			if (freebies <= 0) {
+				break;
+			}
+			const available = bucket.get(price) ?? 0;
+			if (available <= 0) {
+				continue;
+			}
+			const used = Math.min(available, freebies);
+			allocation.set(price, used);
+			freebies -= used;
+		}
+		return allocation;
 	}
 
 	// Checks whether another active promotion already targets the same reference.
