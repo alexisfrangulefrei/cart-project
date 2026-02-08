@@ -163,7 +163,25 @@ export class Cart {
 			return true;
 		}
 		if (this.hasActivePromotionForReference(promotion.reference, promoCode)) {
-			return false;
+			let sameTypeActive = false;
+			for (const [existingCode, existingPromotion] of this.promotions.entries()) {
+				if (existingCode === promoCode) {
+					continue;
+				}
+				if (!existingPromotion.activated) {
+					continue;
+				}
+				if (existingPromotion.reference !== promotion.reference) {
+					continue;
+				}
+				if (existingPromotion.type === promotion.type) {
+					sameTypeActive = true;
+					break;
+				}
+			}
+			if (sameTypeActive) {
+				return false;
+			}
 		}
 		promotion.activated = true;
 		return true;
